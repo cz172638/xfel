@@ -121,7 +121,21 @@ static int chip_sid(struct xfel_ctx_t * ctx, char * sid)
 
 static int chip_jtag(struct xfel_ctx_t * ctx)
 {
-	return 0;
+	uint32_t addr, val;
+
+	/*
+	 * Route CPUX JTAG to port F (shared with SDC0 / microSD slot):
+	 * PF0 = JTAG-MS, PF1 = JTAG-DI, PF3 = JTAG-DO, PF5 = JTAG-CK, function 3.
+	 * PF2/PF4 (UART0-TX/RX, function 3) and PF6 are left untouched.
+	 * Requires JTAG-SEL pin high (internal pull-up, default); with JTAG-SEL
+	 * low the JTAG is forced to port B (PB0..PB3, function 4) instead.
+	 */
+	addr = 0x02000000 + 0x00f0;	/* PF_CFG0 */
+	val = payload_read32(ctx, addr);
+	val &= ~((0xf << (0 * 4)) | (0xf << (1 * 4)) | (0xf << (3 * 4)) | (0xf << (5 * 4)));
+	val |= (0x3 << (0 * 4)) | (0x3 << (1 * 4)) | (0x3 << (3 * 4)) | (0x3 << (5 * 4));
+	payload_write32(ctx, addr, val);
+	return 1;
 }
 
 static int chip_ddr(struct xfel_ctx_t * ctx, const char * type)
